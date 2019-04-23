@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, render_template, request, redirect, session
 from flask_debugtoolbar import DebugToolbarExtension
-from models import connect_db, db, User
-from forms import NewUserForm, LoginForm
+from models import connect_db, db, User, Feedback
+from forms import NewUserForm, LoginForm, EditFeedbackForm, AddFeedbackForm
 from flask_bcrypt import Bcrypt
 
 app = Flask(__name__)
@@ -42,9 +42,9 @@ def new_user():
         db.session.add(new_user)
         db.session.commit()
 
-        session["username"] = user.username
+        session["username"] = new_user.username
 
-        return redirect('/secret')
+        return redirect(f'/users/{new_user.username}')
 
     else:
         return render_template('register.html', form=form)
@@ -91,5 +91,65 @@ def logout():
 
 @app.route('/feedback/<int:feedback_id>/update', methods=["POST", "GET"])
 def feedback_edit(feedback_id):
+    feedback = Feedback.query.get_or_404(feedback_id)
+    user = feedback.users
+    username = user.username
+    if not session.get("username") or session['username'] != user.username:
+        return redirect('/login')
 
+    form = EditFeedbackForm(obj=feedback)
     
+    if form.validate_on_submit():
+        title = form.title.data
+        content = form.content.data
+
+        feedback.title = title
+        feedback.content = content
+        db.session.commit()
+
+        return redirect(f'/users/{username}')
+
+    return render_template('feedback_form_update.html',
+                           form=form, feedback=feedback)
+
+@app.route('/feedback/<int:feedback_id>/delete', methods=["POST"])
+def delete_feedback(feedback_id):
+    feedback = Feedback.query.get_or_404(feedback_id)
+    user = feedback.users
+    db.session.delete(feedback)
+    db.session.commit()
+    return redirect(f'/users/{user.username}')
+
+
+@app.route('/users/<username>/delete', methods=["POST"])
+def delete_user(username):
+    user = User.query.get_or_404(username)
+    if not session.get("username") or session['username'] != user.username:
+        return redirect('/login')
+
+    feedbacks = user.feedbacks
+    [db.session.delete(feedback) for feedback in feedbacks]
+    db.session.delete(user)
+    db.session.commit()
+    session.pop('username')
+    return redirect('/')
+
+@app.route('/users/<username>/feedback/add', methods=["GET", "POST"])
+def add_feedback(username):
+    print('IN ADD FEEDBACK ROUTE')
+    user = User.query.get_or_404(username)
+    if not session.get("username") or session['username'] != user.username:
+        return redirect('/login')
+    
+    form = AddFeedbackForm()
+
+    if form.validate_on_submit():
+        title = form.title.data
+        content = form.content.data
+        feedback = Feedback(username=username, title=title, content=content)
+        db.session.add(feedback)
+        db.session.commit()
+        return redirect(f'/users/{username}')
+    
+    else: 
+        return render_template('add_feedback_form.html', form=form, name=username)
