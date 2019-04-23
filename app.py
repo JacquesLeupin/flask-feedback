@@ -41,6 +41,9 @@ def new_user():
         
         db.session.add(new_user)
         db.session.commit()
+
+        session["username"] = user.username
+
         return redirect('/secret')
 
     else:
@@ -60,14 +63,33 @@ def login_user():
 
         if user.authenticate(name, password):
             session["username"] = user.username
-            return redirect('/secret')
+            return redirect(f'/users/{name}')
 
         else:
             form.username.errors = ["Bad name/password"]
 
     return render_template('login_form.html', form=form)
 
-@app.route("/secret")
-def secret():
+@app.route("/users/<username>")
+def secret(username):
 
-    return "U MADE IT!"
+    user = User.query.get_or_404(username)
+    feedbacks = user.feedbacks
+
+    if not session.get("username") or session['username'] != user.username:
+        return redirect('/login')
+    
+    else: 
+        return render_template('secret.html', name=user.username, email=user.email, first_name=user.first_name, last_name=user.last_name, feedbacks=feedbacks)
+
+@app.route("/logout")
+def logout():
+
+    session.pop('username')
+    
+    return redirect('/')
+
+@app.route('/feedback/<int:feedback_id>/update', methods=["POST", "GET"])
+def feedback_edit(feedback_id):
+
+    
