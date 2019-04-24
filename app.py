@@ -19,6 +19,11 @@ app.config['SECRET_KEY'] = "I'LL NEVER TELL!!"
 
 debug = DebugToolbarExtension(app)
 
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
+
 @app.route("/")
 def homepage():
 
@@ -29,6 +34,12 @@ def homepage():
 def new_user():
 
     form = NewUserForm()
+
+    if session.get("username"):
+        user = session["username"]
+
+    if session.get("username"):
+        return redirect(f"/users/{user}")
 
     if form.validate_on_submit():
         username = form.username.data
@@ -75,12 +86,18 @@ def secret(username):
 
     user = User.query.get_or_404(username)
     feedbacks = user.feedbacks
+    if session.get('username'):
+        curr_user = session.get('username')
+        user = User.query.get_or_404(curr_user)
+        user_to_display = User.query.get_or_404(username)
 
-    if not session.get("username") or session['username'] != user.username:
-        return redirect('/login')
-    
+    if (not session.get("username") or session.get('username') != user.username) and not user.is_admin:
+        return render_template('401.html'), 401
+
+    if not session.get("username") or session.get('username') != user.username:
+        return render_template('401.html'), 401
     else: 
-        return render_template('secret.html', name=user.username, email=user.email, first_name=user.first_name, last_name=user.last_name, feedbacks=feedbacks)
+        return render_template('secret.html', name=user_to_display.username, email=user_to_display.email, first_name=user_to_display.first_name, last_name=user_to_display.last_name, feedbacks=feedbacks)
 
 @app.route("/logout")
 def logout():
@@ -95,7 +112,7 @@ def feedback_edit(feedback_id):
     user = feedback.users
     username = user.username
     if not session.get("username") or session['username'] != user.username:
-        return redirect('/login')
+        return render_template('401.html'), 401
 
     form = EditFeedbackForm(obj=feedback)
     
@@ -125,10 +142,8 @@ def delete_feedback(feedback_id):
 def delete_user(username):
     user = User.query.get_or_404(username)
     if not session.get("username") or session['username'] != user.username:
-        return redirect('/login')
+        return render_template('401.html'), 401
 
-    feedbacks = user.feedbacks
-    [db.session.delete(feedback) for feedback in feedbacks]
     db.session.delete(user)
     db.session.commit()
     session.pop('username')
@@ -139,7 +154,7 @@ def add_feedback(username):
     print('IN ADD FEEDBACK ROUTE')
     user = User.query.get_or_404(username)
     if not session.get("username") or session['username'] != user.username:
-        return redirect('/login')
+        return render_template('401.html'), 401
     
     form = AddFeedbackForm()
 

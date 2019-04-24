@@ -16,6 +16,8 @@ class NewUserForm(FlaskForm):
 
     last_name = StringField("last_name", validators=[InputRequired()])
 
+    is_admin = StringField("is_admin", validators=[InputRequired()])
+
 class LoginForm(FlaskForm):
     """Form for logging in."""
     username = StringField("username", validators=[InputRequired()])

@@ -40,10 +40,12 @@ class User(db.Model):
     last_name = db.Column(db.String(30),
                     nullable=False)
 
+    is_admin = db.Column(db.Boolean(), default=False)
+
     def __repr__(self):
         return f'{self.username}'
 
-    feedbacks = db.relationship('Feedback')
+    feedbacks = db.relationship('Feedback', backref="users", cascade="all,delete")
 
 class Feedback(db.Model):
 
@@ -56,8 +58,6 @@ class Feedback(db.Model):
     content = db.Column(db.String(), nullable=False)
 
     username = db.Column(db.String(), db.ForeignKey('users.username'))
-
-    users = db.relationship('User')
 
 def connect_db(app):
     """Connect to database."""
